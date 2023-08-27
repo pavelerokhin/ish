@@ -1,2 +1,2 @@
 # ish
-conversational completion AI
+conversational completion backend
