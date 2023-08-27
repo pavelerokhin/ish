@@ -1,6 +1,7 @@
 package src
 
 import (
+	"fmt"
 	"ish/src/text"
 	"net/http"
 
@@ -19,17 +20,39 @@ func Rewrite(c echo.Context) error {
 	n := max(request.N, 1)
 
 	// get variants of text
-	var variants []string
-
-	for i := 0; i < n; i++ {
-		variants = append(variants, text.Rewrite(request.Prompt))
+	same, err := text.Rewrite(request.Prompt, n)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
+	longer, err := text.Longer(request.Prompt, n)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	shorter, err := text.Shorter(request.Prompt, n)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	more, err := text.More(request.Prompt, request.Parameter, n)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	less, err := text.Less(request.Prompt, request.Parameter, n)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	fmt.Printf("Prompt: %s\n", request.Prompt)
+	fmt.Printf("Same: %v\n", same)
+	fmt.Printf("Longer: %v\n", longer)
+	fmt.Printf("Shorter: %v\n", shorter)
+	fmt.Printf("More %s: %v\n", request.Parameter, more)
+	fmt.Printf("Less %s: %v\n", request.Parameter, less)
 
 	// get differences between variants and text
-	diffs := make(map[int]map[int]string)
-	for i := range variants {
-		diffs[i] = text.Difference(request.Prompt, variants)
-	}
+	//diffs := make(map[int]map[int]string)
+	//for i := range variants {
+	//	diffs[i] = text.Difference(request.Prompt, variants)
+	//}
 
-	return nil
+	return c.JSON(http.StatusOK, nil)
 }

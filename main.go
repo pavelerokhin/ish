@@ -1,25 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"os"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
-	"github.com/spf13/viper"
+
 	"ish/src"
-	"ish/src/openai"
-	"os"
+	"ish/src/oai"
 )
 
 func main() {
-	// Initialize viper and read configurations
-	viper.SetConfigFile("config.yaml")
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("failed to read config file: %s", err))
-	}
-
-	openai.Init()
+	oai.Init()
 
 	// Create an Echo instance
 	e := echo.New()
@@ -44,10 +37,5 @@ func main() {
 	e.POST("/rewrite", src.Rewrite)
 
 	// Start the server
-	port := viper.GetString("port")
-	if port == "" {
-		port = ":8080"
-	}
-
-	e.Logger.Fatal(e.Start(port))
+	e.Logger.Fatal(e.Start(":8080"))
 }
