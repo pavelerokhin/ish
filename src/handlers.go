@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"ish/src/text"
 	"net/http"
+	"sync"
 
 	"github.com/labstack/echo/v4"
 )
 
 func Rewrite(c echo.Context) error {
-	var request RewriteRequest
+	var request Request
 	if err := c.Bind(&request); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -20,27 +21,35 @@ func Rewrite(c echo.Context) error {
 	n := max(request.N, 1)
 
 	// get variants of text
-	same, err := text.Rewrite(request.Prompt, n)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-	longer, err := text.Longer(request.Prompt, n)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-	shorter, err := text.Shorter(request.Prompt, n)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-	more, err := text.More(request.Prompt, request.Parameter, n)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-	less, err := text.Less(request.Prompt, request.Parameter, n)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
+	var same, longer, shorter, more, less []string
+	wg := &sync.WaitGroup{}
+	wg.Add(5)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		same = text.Rewrite(request.Prompt, n)
+	}(wg)
 
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		longer = text.Longer(request.Prompt, n)
+	}(wg)
+
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		shorter = text.Shorter(request.Prompt, n)
+	}(wg)
+
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		more = text.More(request.Prompt, request.Parameter, n)
+	}(wg)
+
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		less = text.Less(request.Prompt, request.Parameter, n)
+	}(wg)
+
+	wg.Wait()
 	fmt.Printf("Prompt: %s\n", request.Prompt)
 	fmt.Printf("Same: %v\n", same)
 	fmt.Printf("Longer: %v\n", longer)
@@ -48,11 +57,16 @@ func Rewrite(c echo.Context) error {
 	fmt.Printf("More %s: %v\n", request.Parameter, more)
 	fmt.Printf("Less %s: %v\n", request.Parameter, less)
 
-	// get differences between variants and text
-	//diffs := make(map[int]map[int]string)
-	//for i := range variants {
-	//	diffs[i] = text.Difference(request.Prompt, variants)
-	//}
+	resp := Response{
+		Prompt:    request.Prompt,
+		Parameter: request.Parameter,
 
-	return c.JSON(http.StatusOK, nil)
+		Same:    same,
+		Longer:  longer,
+		Shorter: shorter,
+		More:    more,
+		Less:    less,
+	}
+	// encode json resp e send to client
+	return c.JSON(http.StatusOK, resp)
 }
