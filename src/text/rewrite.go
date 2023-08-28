@@ -2,6 +2,7 @@ package text
 
 import (
 	"fmt"
+	"strings"
 
 	"ish/src/oai"
 )
@@ -31,80 +32,76 @@ Place the answer inside <answer> XML.
 <sentence>%s</sentence>\n`
 )
 
-func Rewrite(text string, n int) ([]string, error) {
-	var out []string
-
-	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(rewrite, exceptions(out), text))
-		// we need to have exactly N completions
-		if err != nil {
-			panic(err)
-		}
-		out = append(out, variant)
-	}
-
-	return out, nil
+func Rewrite(text string, n int) []string {
+	return getAnswers(rewrite, text, n)
 }
 
-func Longer(text string, n int) ([]string, error) {
-	var out []string
-
-	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(longer, exceptions(out), text))
-		// we need to have exactly N completions
-		if err != nil {
-			panic(err)
-		}
-		out = append(out, variant)
-	}
-
-	return out, nil
+func Longer(text string, n int) []string {
+	return getAnswers(longer, text, n)
 }
 
-func Shorter(text string, n int) ([]string, error) {
-	var out []string
-
-	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(shorter, exceptions(out), text))
-		// we need to have exactly N completions
-		if err != nil {
-			panic(err)
-		}
-		out = append(out, variant)
-	}
-
-	return out, nil
+func Shorter(text string, n int) []string {
+	return getAnswers(shorter, text, n)
 }
 
-func More(text string, parameter string, n int) ([]string, error) {
-	var out []string
-
-	for i := 0; i < n; i++ {
-		x := fmt.Sprintf(more, parameter, exceptions(out), text)
-		variant, err := oai.MakeCompletion(x)
-		// we need to have exactly N completions
-		if err != nil {
-			panic(err)
-		}
-		out = append(out, variant)
-	}
-
-	return out, nil
+func More(text string, parameter string, n int) []string {
+	return getAnswersWithParameter(shorter, text, parameter, n)
 }
 
-func Less(text string, parameter string, n int) ([]string, error) {
-	var out []string
+func Less(text string, parameter string, n int) []string {
+	return getAnswersWithParameter(shorter, text, parameter, n)
+}
 
-	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(less, parameter, exceptions(out), text))
-		// we need to have exactly N completions
+func getAnswers(prompt, text string, n int) []string {
+	var out []string
+	i := 0
+	for i < n {
+		candidate, err := oai.MakeCompletion(fmt.Sprintf(prompt, exceptions(out), text))
 		if err != nil {
 			panic(err)
 		}
-		out = append(out, variant)
+
+		if !validateCandidate(candidate) {
+			continue
+		}
+
+		answer := extractAnswer(candidate)
+		// we need to have exactly N completions
+		if !validateAnswer(answer, out) {
+			continue
+		}
+
+		out = append(out, answer)
+		i++
 	}
 
-	return out, nil
+	return out
+}
+
+func getAnswersWithParameter(prompt, text, parameter string, n int) []string {
+	var out []string
+	i := 0
+	for i < n {
+		candidate, err := oai.MakeCompletion(fmt.Sprintf(prompt, parameter, exceptions(out), text))
+		if err != nil {
+			panic(err)
+		}
+
+		if !validateCandidate(candidate) {
+			continue
+		}
+
+		answer := extractAnswer(candidate)
+		// we need to have exactly N completions
+		if !validateAnswer(answer, out) {
+			continue
+		}
+
+		out = append(out, answer)
+		i++
+	}
+
+	return out
 }
 
 func exceptions(ee []string) string {
@@ -118,4 +115,29 @@ func exceptions(ee []string) string {
 	}
 
 	return out
+}
+
+func extractAnswer(candidate string) string {
+	// contain <answer> and </answer>, one before another
+	a := strings.Index(candidate, "<answer>") + len("<answer>")
+	b := strings.Index(candidate, "</answer>")
+	return candidate[a:b]
+}
+
+func validateCandidate(candidate string) bool {
+	// contain <answer> and </answer>, one before another
+	a := strings.Index(candidate, "<answer>")
+	b := strings.Index(candidate, "</answer>")
+	return a != -1 && a != b && a < b
+}
+
+func validateAnswer(answer string, exceptions []string) bool {
+	// general answer validation
+	// see if we already had this answer, or it is banned
+	for _, e := range exceptions {
+		if answer == e {
+			return false
+		}
+	}
+	return true
 }
