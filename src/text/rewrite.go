@@ -45,11 +45,11 @@ func Shorter(text string, n int) []string {
 }
 
 func More(text string, parameter string, n int) []string {
-	return getAnswersWithParameter(shorter, text, parameter, n)
+	return getAnswersWithParameter(more, text, parameter, n)
 }
 
 func Less(text string, parameter string, n int) []string {
-	return getAnswersWithParameter(shorter, text, parameter, n)
+	return getAnswersWithParameter(less, text, parameter, n)
 }
 
 func getAnswers(prompt, text string, n int) []string {
