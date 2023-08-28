@@ -7,33 +7,35 @@ import (
 )
 
 const (
-	rewrite = "Rewrite the following sentence having the same length " +
-		"your answer must be different from sentences inside <no> XML tags " +
-		"<no>%s</no>" +
-		"%s\n"
-	longer = "Rewrite the following sentence a bit longer " +
-		"your answer must be different from sentences inside <no> XML tags " +
-		"<no>%s</no>" +
-		"%s\n"
-	shorter = "Rewrite the following sentence a bit shorter " +
-		"your answer must be different from sentences inside <no> XML tags" +
-		"<no>%s</no>" +
-		"%s\n"
-	more = "Rephrase this sentence to make it clearer and more %s" +
-		"your answer must be different from sentences inside <no> XML tags" +
-		"<no>%s</no>" +
-		"%s\n"
-	less = "Rephrase this sentence to make it clearer and less %s" +
-		"your answer must be different from sentences inside <no> XML tags" +
-		"<no>%s</no>" +
-		"%s\n"
+	exception      = "<no>%s</no>\n"
+	exceptionFrame = "<answer> has to be different from phrases inside <no> XML tags.\n"
+	rewrite        = `Rewrite a sentence inside <sentence> XML tags of same length.
+Place the answer inside <answer> XML.
+%s
+<sentence>%s</sentence>\n`
+	longer = `Rewrite a sentence inside <sentence> XML tags as a longer sentence.
+Place the answer inside <answer> XML.
+%s
+<sentence>%s</sentence>\n`
+	shorter = `Rewrite a sentence inside <sentence> XML tags as a shorter sentence.
+Place the answer inside <answer> XML. 
+%s
+<sentence>%s</sentence>\n`
+	more = `Rewrite a sentence inside <sentence> XML tags. It must be more %s.
+Place the answer inside <answer> XML. 
+%s
+<sentence>%s</sentence>\n`
+	less = `Rewrite a sentence inside <sentence> XML tags. It must be less %s.
+Place the answer inside <answer> XML. 
+%s
+<sentence>%s</sentence>\n`
 )
 
 func Rewrite(text string, n int) ([]string, error) {
 	var out []string
 
 	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(rewrite, out, text))
+		variant, err := oai.MakeCompletion(fmt.Sprintf(rewrite, exceptions(out), text))
 		// we need to have exactly N completions
 		if err != nil {
 			panic(err)
@@ -48,7 +50,7 @@ func Longer(text string, n int) ([]string, error) {
 	var out []string
 
 	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(longer, out, text))
+		variant, err := oai.MakeCompletion(fmt.Sprintf(longer, exceptions(out), text))
 		// we need to have exactly N completions
 		if err != nil {
 			panic(err)
@@ -63,7 +65,7 @@ func Shorter(text string, n int) ([]string, error) {
 	var out []string
 
 	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(shorter, out, text))
+		variant, err := oai.MakeCompletion(fmt.Sprintf(shorter, exceptions(out), text))
 		// we need to have exactly N completions
 		if err != nil {
 			panic(err)
@@ -78,7 +80,7 @@ func More(text string, parameter string, n int) ([]string, error) {
 	var out []string
 
 	for i := 0; i < n; i++ {
-		x := fmt.Sprintf(more, parameter, out, text)
+		x := fmt.Sprintf(more, parameter, exceptions(out), text)
 		variant, err := oai.MakeCompletion(x)
 		// we need to have exactly N completions
 		if err != nil {
@@ -94,7 +96,7 @@ func Less(text string, parameter string, n int) ([]string, error) {
 	var out []string
 
 	for i := 0; i < n; i++ {
-		variant, err := oai.MakeCompletion(fmt.Sprintf(less, parameter, out, text))
+		variant, err := oai.MakeCompletion(fmt.Sprintf(less, parameter, exceptions(out), text))
 		// we need to have exactly N completions
 		if err != nil {
 			panic(err)
@@ -103,4 +105,17 @@ func Less(text string, parameter string, n int) ([]string, error) {
 	}
 
 	return out, nil
+}
+
+func exceptions(ee []string) string {
+	out := ""
+	if len(ee) == 0 {
+		return out
+	}
+	out = exceptionFrame
+	for _, e := range ee {
+		out += fmt.Sprintf(exception, e)
+	}
+
+	return out
 }
